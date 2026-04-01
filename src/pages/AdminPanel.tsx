@@ -15,14 +15,25 @@ const AdminPanel = () => {
   const [selectedPickupForDrop, setSelectedPickupForDrop] = useState('');
   const [newDropoff, setNewDropoff] = useState('');
 
-  const pendingCount = bookings.filter(b => b.status === 'pending').length;
-  const approvedCount = bookings.filter(b => b.status === 'approved').length;
-
   const refresh = () => {
     setBookings(getBookings());
     setPickups(getPickupLocations());
     setDropMap(getDropoffMapping());
   };
+
+  // Auto-refresh bookings every 2 seconds and on window focus
+  useEffect(() => {
+    const interval = setInterval(refresh, 2000);
+    const onFocus = () => refresh();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
+
+  const pendingCount = bookings.filter(b => b.status === 'pending').length;
+  const approvedCount = bookings.filter(b => b.status === 'approved').length;
 
   const addPickup = () => {
     if (newPickup && !pickups.includes(newPickup)) {
