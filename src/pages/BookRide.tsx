@@ -147,9 +147,14 @@ const BookRide = () => {
 
   const [modal, setModal] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [pickups, setPickups] = useState<string[]>([]);
+  const [dropMap, setDropMap] = useState<Record<string, string[]>>({});
 
-  const pickups = getPickupLocations();
-  const dropMap = getDropoffMapping();
+  // Refresh locations whenever modal opens or component mounts
+  useEffect(() => {
+    setPickups(getPickupLocations());
+    setDropMap(getDropoffMapping());
+  }, [modal]);
 
   const fare = calculateFare(pickup, dropoff);
 
