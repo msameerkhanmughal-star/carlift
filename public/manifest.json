@@ -1,0 +1,17 @@
+{
+  "name": "Car Lift Admin",
+  "short_name": "CL Admin",
+  "description": "Car Lift Admin Panel - Manage bookings and notifications",
+  "start_url": "/carlift-admin",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#cc0000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

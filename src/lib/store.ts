@@ -32,6 +32,11 @@ export interface User {
   role: 'user' | 'admin';
 }
 
+export interface CarImage {
+  carName: string;
+  imageUrl: string;
+}
+
 export const CARS_LIST = [
   "Suzuki Alto 2019 Silver BSB 179",
   "Suzuki Alto 2020 White BVG 830",
@@ -90,6 +95,11 @@ export function calculateFare(pickup: string, dropoff: string) {
   return { km, total };
 }
 
+export function parseFareAmount(fare: string): number {
+  const digits = fare.replace(/[^0-9]/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
+
 // localStorage helpers
 export function getBookings(): Booking[] {
   return JSON.parse(localStorage.getItem('carLiftBookings') || '[]');
@@ -135,6 +145,15 @@ export function savePickupLocations(pickups: string[]) {
 
 export function saveDropoffMapping(mapping: Record<string, string[]>) {
   localStorage.setItem('carlift_dropmap', JSON.stringify(mapping));
+}
+
+// Car images
+export function getCarImages(): Record<string, string> {
+  return JSON.parse(localStorage.getItem('carlift_car_images') || '{}');
+}
+
+export function saveCarImages(images: Record<string, string>) {
+  localStorage.setItem('carlift_car_images', JSON.stringify(images));
 }
 
 // Notification helpers

@@ -4,6 +4,7 @@ import {
   getPickupLocations, getDropoffMapping, ROUTE_TIMINGS, ROUTES_DATA,
   calculateFare, getBookings, saveBookings, addNotification, type Booking
 } from "@/lib/store";
+import { saveBookingToFirestore, addNotificationToFirestore } from "@/lib/firestoreStore";
 
 // Route Carousel - Enhanced
 const RouteCarousel = () => {
@@ -150,7 +151,6 @@ const BookRide = () => {
   const [pickups, setPickups] = useState<string[]>([]);
   const [dropMap, setDropMap] = useState<Record<string, string[]>>({});
 
-  // Refresh locations whenever modal opens or component mounts
   useEffect(() => {
     setPickups(getPickupLocations());
     setDropMap(getDropoffMapping());
@@ -162,25 +162,33 @@ const BookRide = () => {
     setPayments(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || whatsapp.length !== 11) { alert('Valid name and 11-digit WhatsApp required'); return; }
     if (!pickup || !dropoff || !timing || !carClass || !startDate) { alert('Complete all fields'); return; }
     if (payments.length === 0) { alert('Select payment method'); return; }
 
     const bookingId = Date.now();
-    const bookings = getBookings();
-    bookings.unshift({
+    const newBooking: Booking = {
       id: bookingId,
       name: fullName, whatsapp, pickup, dropoff, timing,
       class: carClass, startDate, payment: payments.join(', '),
       fare: `Rs ${fare?.total}/month`, status: 'pending', assignedCar: '',
       createdAt: new Date().toISOString(),
-    });
+    };
+
+    // Save to localStorage (primary fallback)
+    const bookings = getBookings();
+    bookings.unshift(newBooking);
     saveBookings(bookings);
 
-    // Add notification for admin
-    addNotification(`A new booking is pending from ${fullName} (${pickup} to ${dropoff})`, bookingId);
+    // Save to Firestore (real-time + push notifications)
+    await saveBookingToFirestore(newBooking);
+
+    // Add notification (localStorage + Firestore)
+    const notifMsg = `New booking from ${fullName} (${pickup} → ${dropoff})`;
+    addNotification(notifMsg, bookingId);
+    await addNotificationToFirestore(notifMsg, bookingId);
 
     setShowSuccess(true);
     setFullName(''); setWhatsapp(''); setPickup(''); setDropoff('');
