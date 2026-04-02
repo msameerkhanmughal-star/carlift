@@ -1,5 +1,8 @@
-import { Phone } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Phone, LogIn, LogOut, User } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { onAuthStateChanged, signOut, type User as FirebaseUser } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import carLiftLogo from "@/assets/carlift-logo-new.png";
 
 const SlidingBanner = () => (
@@ -16,16 +19,32 @@ const SlidingBanner = () => (
 
 const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const isAdmin = location.pathname === '/carlift-admin';
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsub();
+  }, []);
 
   if (isAdmin) return null;
 
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate('/auth');
+  };
+
   return (
-    <nav className="bg-background/95 backdrop-blur-md px-4 md:px-6 py-3 flex justify-between items-center border-b-2 border-primary sticky top-0 z-[1000] flex-wrap gap-3">
+    <nav className="bg-background/95 backdrop-blur-md px-4 md:px-6 py-2 flex justify-between items-center border-b-2 border-primary sticky top-0 z-[1000] flex-wrap gap-3">
       <Link to="/" className="flex items-center gap-2.5">
-        <img src={carLiftLogo} alt="Car Lift" className="h-10 w-auto object-contain" />
+        <img
+          src={carLiftLogo}
+          alt="Car Lift"
+          className="h-14 w-auto object-contain drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]"
+        />
       </Link>
-      <div className="flex gap-4 md:gap-6 items-center flex-wrap">
+      <div className="flex gap-3 md:gap-5 items-center flex-wrap">
         <Link
           to="/"
           className={`font-semibold transition-colors hover:text-primary ${location.pathname === '/' ? 'text-primary border-b-2 border-primary pb-1' : 'text-foreground'}`}
@@ -46,6 +65,28 @@ const Navbar = () => {
         >
           <Phone className="w-4 h-4" /> WhatsApp
         </a>
+
+        {user ? (
+          <div className="flex items-center gap-2">
+            <span className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground bg-primary/10 border border-primary/30 px-3 py-1.5 rounded-full">
+              <User className="w-3.5 h-3.5 text-primary" />
+              {user.email?.split('@')[0]}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 text-sm transition-all hover:scale-105"
+            >
+              <LogOut className="w-4 h-4" /> Logout
+            </button>
+          </div>
+        ) : (
+          <Link
+            to="/auth"
+            className="bg-primary hover:bg-primary/80 text-primary-foreground px-4 py-2 rounded-full font-bold flex items-center gap-2 text-sm transition-all hover:scale-105"
+          >
+            <LogIn className="w-4 h-4" /> Login
+          </Link>
+        )}
       </div>
     </nav>
   );
