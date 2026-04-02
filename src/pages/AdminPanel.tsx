@@ -10,6 +10,7 @@ import {
   savePickupLocations, saveDropoffMapping, CARS_LIST, type Booking,
   getNotifications, markNotificationRead, markAllNotificationsRead, getDaysUntilDeadline
 } from "@/lib/store";
+import carLiftLogo from "@/assets/carlift-logo.png";
 
 // Popup Modal component
 const PopupModal = ({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) => {
@@ -50,99 +51,140 @@ const ConfirmDeleteModal = ({ open, onClose, onConfirm, itemName }: { open: bool
   </PopupModal>
 );
 
+// Load logo as base64 for PDF
+function loadLogoBase64(): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve('');
+    img.src = carLiftLogo;
+  });
+}
+
 // PDF Invoice Generator
-function generateInvoicePDF(b: Booking) {
+async function generateInvoicePDF(b: Booking) {
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
 
-  doc.setFillColor(139, 0, 0);
-  doc.rect(0, 0, pageW, 42, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
+  // Load logo
+  const logoBase64 = await loadLogoBase64();
+
+  // === HEADER ===
+  // Dark gradient header
+  doc.setFillColor(10, 10, 10);
+  doc.rect(0, 0, pageW, 48, 'F');
+  // Red accent line
+  doc.setFillColor(255, 0, 0);
+  doc.rect(0, 48, pageW, 3, 'F');
+
+  // Logo in header
+  if (logoBase64) {
+    doc.addImage(logoBase64, 'PNG', 12, 6, 36, 36);
+  }
+
+  // Invoice title
+  doc.setTextColor(255, 0, 0);
+  doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
-  doc.text("CAR LIFT", 15, 22);
-  doc.setFontSize(10);
+  doc.text("INVOICE", pageW - 15, 20, { align: "right" });
+  doc.setTextColor(180, 180, 180);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Premium Monthly Car Service", 15, 32);
+  doc.text(`Invoice No: #INV-${b.id}`, pageW - 15, 28, { align: "right" });
+  doc.text(`Date: ${new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageW - 15, 35, { align: "right" });
+  doc.text("Premium Monthly Car Service", pageW - 15, 42, { align: "right" });
+
+  // === BILLED TO SECTION ===
+  const billedY = 62;
+  doc.setFillColor(18, 18, 18);
+  doc.roundedRect(15, billedY, pageW - 30, 40, 3, 3, 'F');
+  doc.setFillColor(255, 0, 0);
+  doc.rect(15, billedY, 4, 40, 'F');
+
+  doc.setTextColor(255, 0, 0);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("BILLED TO", 25, billedY + 12);
+
+  doc.setTextColor(230, 230, 230);
   doc.setFontSize(12);
-  doc.text("INVOICE", pageW - 15, 22, { align: "right" });
+  doc.text(b.name, 25, billedY + 22);
+  doc.setTextColor(150, 150, 150);
   doc.setFontSize(9);
-  doc.text(`#INV-${b.id}`, pageW - 15, 30, { align: "right" });
+  doc.text(`WhatsApp: ${b.whatsapp}`, 25, billedY + 30);
+  doc.text(`Start Date: ${b.startDate}`, 25, billedY + 37);
 
-  doc.setTextColor(100, 100, 100);
-  doc.setFontSize(9);
-  doc.text(`Date: ${new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageW - 15, 52, { align: "right" });
+  // === TABLE ===
+  const tableTop = billedY + 50;
 
-  doc.setFillColor(245, 245, 245);
-  doc.rect(15, 58, pageW - 30, 36, 'F');
-  doc.setDrawColor(139, 0, 0);
-  doc.setLineWidth(0.5);
-  doc.line(15, 58, 15, 94);
-  doc.setTextColor(139, 0, 0);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("BILLED TO", 22, 68);
-  doc.setTextColor(50, 50, 50);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(b.name, 22, 76);
-  doc.setFontSize(9);
-  doc.text(`WhatsApp: ${b.whatsapp}`, 22, 84);
-  doc.text(`Start Date: ${b.startDate}`, 22, 91);
-
-  const tableTop = 106;
-  doc.setFillColor(139, 0, 0);
-  doc.rect(15, tableTop, pageW - 30, 12, 'F');
+  // Table header
+  doc.setFillColor(255, 0, 0);
+  doc.roundedRect(15, tableTop, pageW - 30, 14, 2, 2, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("DESCRIPTION", 20, tableTop + 8);
-  doc.text("DETAILS", pageW - 20, tableTop + 8, { align: "right" });
+  doc.text("DESCRIPTION", 22, tableTop + 9.5);
+  doc.text("DETAILS", pageW - 22, tableTop + 9.5, { align: "right" });
 
   const rows = [
     ["Pickup Location", b.pickup],
     ["Drop-off Location", b.dropoff],
     ["Timing Slot", b.timing],
     ["Vehicle Class", b.class],
-    ["Assigned Car", b.assignedCar || "To Be Assigned"],
+    ["Assigned Vehicle", b.assignedCar || "To Be Assigned"],
     ["Payment Method", b.payment],
-    ["Booking Status", b.status === 'approved' ? "Approved" : "Pending"],
+    ["Booking Status", b.status === 'approved' ? "APPROVED" : "PENDING"],
   ];
 
-  doc.setFont("helvetica", "normal");
-  let y = tableTop + 12;
+  let y = tableTop + 14;
   rows.forEach((row, i) => {
-    const bg = i % 2 === 0 ? 250 : 255;
-    doc.setFillColor(bg, bg, bg);
-    doc.rect(15, y, pageW - 30, 11, 'F');
-    doc.setTextColor(80, 80, 80);
+    const bgVal = i % 2 === 0 ? 22 : 15;
+    doc.setFillColor(bgVal, bgVal, bgVal);
+    doc.rect(15, y, pageW - 30, 13, 'F');
+
+    doc.setTextColor(150, 150, 150);
     doc.setFontSize(9);
-    doc.text(row[0], 20, y + 7.5);
-    doc.setTextColor(30, 30, 30);
-    doc.setFont("helvetica", "bold");
-    doc.text(row[1], pageW - 20, y + 7.5, { align: "right" });
     doc.setFont("helvetica", "normal");
-    y += 11;
+    doc.text(row[0], 22, y + 9);
+
+    doc.setTextColor(230, 230, 230);
+    doc.setFont("helvetica", "bold");
+    doc.text(row[1], pageW - 22, y + 9, { align: "right" });
+    y += 13;
   });
 
-  y += 6;
-  doc.setFillColor(139, 0, 0);
-  doc.rect(pageW / 2, y, pageW / 2 - 15, 16, 'F');
+  // === TOTAL FARE BOX ===
+  y += 10;
+  doc.setFillColor(255, 0, 0);
+  doc.roundedRect(pageW / 2 - 10, y, pageW / 2 - 5, 22, 3, 3, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("MONTHLY FARE", pageW / 2 + 8, y + 10);
-  doc.setFontSize(13);
-  doc.text(b.fare, pageW - 20, y + 10, { align: "right" });
+  doc.text("MONTHLY FARE", pageW / 2, y + 14);
+  doc.setFontSize(16);
+  doc.text(b.fare, pageW - 22, y + 14, { align: "right" });
 
-  const footerY = doc.internal.pageSize.getHeight() - 30;
-  doc.setDrawColor(200, 200, 200);
-  doc.line(15, footerY, pageW - 15, footerY);
-  doc.setTextColor(150, 150, 150);
+  // === FOOTER ===
+  const footerY = pageH - 35;
+  doc.setFillColor(10, 10, 10);
+  doc.rect(0, footerY, pageW, 35, 'F');
+  doc.setFillColor(255, 0, 0);
+  doc.rect(0, footerY, pageW, 2, 'F');
+  doc.setTextColor(100, 100, 100);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("Car Lift - Premium Monthly Transportation Service", pageW / 2, footerY + 8, { align: "center" });
-  doc.text("This is a system-generated invoice.", pageW / 2, footerY + 14, { align: "center" });
+  doc.text("Car Lift - Premium Monthly Transportation Service", pageW / 2, footerY + 12, { align: "center" });
+  doc.text("This is a system-generated invoice. No signature required.", pageW / 2, footerY + 18, { align: "center" });
+  doc.text("For queries, contact via WhatsApp", pageW / 2, footerY + 24, { align: "center" });
 
   doc.save(`CarLift_Invoice_${b.id}.pdf`);
 }
@@ -307,8 +349,8 @@ const AdminPanel = () => {
       {/* Header */}
       <div className="bg-card border-b-2 border-primary px-4 md:px-8 py-5 flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-3">
-          <Crown className="w-7 h-7 text-primary" />
-          <h1 className="font-display text-2xl md:text-3xl font-bold gradient-text">CAR LIFT ADMIN</h1>
+          <img src={carLiftLogo} alt="Car Lift Admin" className="h-12 w-auto object-contain" />
+          <span className="font-display text-lg font-bold text-primary uppercase tracking-wider">Admin</span>
         </div>
         <div className="flex flex-wrap gap-3 items-center">
           {/* Notification Bell */}
@@ -454,7 +496,7 @@ const AdminPanel = () => {
                         (dropMap[selectedPickupForDrop] || []).map(d => (
                           <div key={d} className="bg-accent/20 border border-border rounded-lg px-3 py-2 flex items-center justify-between hover:border-primary transition-all group">
                             <span className="flex items-center gap-2 text-sm">
-                              <ChevronRight className="w-3 h-3 text-primary" /> {d}
+                              <ChevronRightIcon className="w-3 h-3 text-primary" /> {d}
                             </span>
                             <button onClick={() => confirmDeleteDropoff(selectedPickupForDrop, d)} className="text-destructive/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100">
                               <Trash2 className="w-3.5 h-3.5" />
@@ -609,8 +651,8 @@ const AdminPanel = () => {
   );
 };
 
-// Need this for the dropoff section
-const ChevronRight = ({ className }: { className?: string }) => (
+// ChevronRight icon
+const ChevronRightIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>
 );
 
