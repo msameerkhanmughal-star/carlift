@@ -2,6 +2,7 @@
 
 export interface Booking {
   id: number;
+  userId?: string;
   name: string;
   whatsapp: string;
   pickup: string;
