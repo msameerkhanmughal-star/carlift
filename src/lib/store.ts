@@ -13,6 +13,15 @@ export interface Booking {
   fare: string;
   status: 'pending' | 'approved';
   assignedCar: string;
+  createdAt: string;
+}
+
+export interface Notification {
+  id: number;
+  message: string;
+  bookingId: number;
+  read: boolean;
+  createdAt: string;
 }
 
 export interface User {
@@ -126,4 +135,51 @@ export function savePickupLocations(pickups: string[]) {
 
 export function saveDropoffMapping(mapping: Record<string, string[]>) {
   localStorage.setItem('carlift_dropmap', JSON.stringify(mapping));
+}
+
+// Notification helpers
+export function getNotifications(): Notification[] {
+  return JSON.parse(localStorage.getItem('carLiftNotifications') || '[]');
+}
+
+export function saveNotifications(notifications: Notification[]) {
+  localStorage.setItem('carLiftNotifications', JSON.stringify(notifications));
+}
+
+export function addNotification(message: string, bookingId: number) {
+  const notifications = getNotifications();
+  notifications.unshift({
+    id: Date.now(),
+    message,
+    bookingId,
+    read: false,
+    createdAt: new Date().toISOString(),
+  });
+  saveNotifications(notifications);
+}
+
+export function markNotificationRead(id: number) {
+  const notifications = getNotifications();
+  const updated = notifications.map(n => n.id === id ? { ...n, read: true } : n);
+  saveNotifications(updated);
+}
+
+export function markAllNotificationsRead() {
+  const notifications = getNotifications();
+  const updated = notifications.map(n => ({ ...n, read: true }));
+  saveNotifications(updated);
+}
+
+// Deadline helper - calculates days until start date
+export function getDaysUntilDeadline(startDate: string): number | null {
+  try {
+    const parsed = new Date(startDate);
+    if (isNaN(parsed.getTime())) return null;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    parsed.setHours(0, 0, 0, 0);
+    return Math.ceil((parsed.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  } catch {
+    return null;
+  }
 }
