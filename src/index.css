@@ -43,7 +43,7 @@
     --sidebar-accent: 0 30% 12%;
     --sidebar-accent-foreground: 0 0% 90%;
     --sidebar-border: 0 20% 15%;
-    --sidebar-ring: 0 70% 50%;
+    --sidebar-ring: 0 100% 50%;
 
     /* Custom tokens */
     --gradient-brand: linear-gradient(135deg, hsl(0 70% 45%), hsl(0 60% 55%));
