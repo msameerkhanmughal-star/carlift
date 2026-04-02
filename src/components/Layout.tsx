@@ -36,12 +36,12 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-background/95 backdrop-blur-md px-4 md:px-6 py-2 flex justify-between items-center border-b-2 border-primary sticky top-0 z-[1000] flex-wrap gap-3">
-      <Link to="/" className="flex items-center gap-2.5">
+    <nav className="bg-background/95 backdrop-blur-md px-4 md:px-8 py-3 flex justify-between items-center border-b-2 border-primary sticky top-0 z-[1000] flex-wrap gap-3">
+      <Link to="/" className="flex items-center gap-3">
         <img
           src={carLiftLogo}
           alt="Car Lift"
-          className="h-14 w-auto object-contain drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]"
+          className="h-20 md:h-24 w-auto object-contain drop-shadow-[0_0_12px_hsl(var(--primary)/0.8)]"
         />
       </Link>
       <div className="flex gap-3 md:gap-5 items-center flex-wrap">
