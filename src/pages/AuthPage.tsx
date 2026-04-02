@@ -144,13 +144,16 @@ const AuthPage = () => {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent rounded-full" />
 
           {/* Logo */}
-          <div className="flex flex-col items-center gap-2 mb-8">
-            <img
-              src={carLiftLogo}
-              alt="Car Lift"
-              className="h-20 w-auto object-contain drop-shadow-[0_0_20px_hsla(0,70%,45%,0.5)]"
-            />
-            <p className="text-muted-foreground text-xs uppercase tracking-widest">Premium Monthly Service</p>
+          <div className="flex flex-col items-center gap-3 mb-8">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl scale-150 pointer-events-none" />
+              <img
+                src={carLiftLogo}
+                alt="Car Lift"
+                className="relative h-44 w-auto object-contain drop-shadow-[0_0_30px_hsla(0,80%,50%,0.7)]"
+              />
+            </div>
+            <p className="text-muted-foreground text-xs uppercase tracking-widest font-semibold">Premium Monthly Service</p>
           </div>
 
           {/* Tabs */}
