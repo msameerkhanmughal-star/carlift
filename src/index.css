@@ -88,7 +88,7 @@
   }
 
   .sliding-banner-bg {
-    background: linear-gradient(95deg, hsl(0 60% 35%), hsl(0 50% 15%), hsl(0 55% 30%));
+    background: linear-gradient(95deg, hsl(0 100% 40%), hsl(0 50% 15%), hsl(0 100% 35%));
   }
 }
 
