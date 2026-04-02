@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Crown, MapPin, CalendarCheck, Trash2, MessageCircle, FileText, Plus, ArrowLeft, X, Car, CheckCircle, Clock,
   Bell, AlertTriangle, Shield, ChevronDown, ChevronUp, Users, TrendingUp, Timer, Settings,
-  Image, DollarSign, BarChart3, Loader2, Save, Wifi
+  Image, DollarSign, BarChart3, Loader2, Wifi
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import {
@@ -206,8 +206,7 @@ const AdminPanel = () => {
 
   // Car images state
   const [carImages, setCarImages] = useState<Record<string, string>>(getCarImages());
-  const [editingImageCar, setEditingImageCar] = useState<string | null>(null);
-  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [uploadingCar, setUploadingCar] = useState<string | null>(null);
   const [savingImages, setSavingImages] = useState(false);
 
   // FCM status
@@ -394,16 +393,42 @@ const AdminPanel = () => {
     setNotifications(getNotifications());
   };
 
-  // Car image management
-  const handleSaveCarImage = async (carName: string, url: string) => {
+  // Car image management — compress + save as base64
+  const compressAndSave = async (carName: string, file: File) => {
+    setUploadingCar(carName);
     setSavingImages(true);
-    const updated = { ...carImages, [carName]: url };
-    setCarImages(updated);
-    saveCarImages(updated);
-    await saveCarImagesToFirestore(updated);
-    setEditingImageCar(null);
-    setImageUrlInput('');
-    setSavingImages(false);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = (e) => {
+          const src = e.target?.result as string;
+          const img = new window.Image();
+          img.onerror = reject;
+          img.onload = () => {
+            const MAX = 480;
+            let w = img.width, h = img.height;
+            if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
+            else { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d')?.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.72));
+          };
+          img.src = src;
+        };
+        reader.readAsDataURL(file);
+      });
+      const updated = { ...carImages, [carName]: base64 };
+      setCarImages(updated);
+      saveCarImages(updated);
+      await saveCarImagesToFirestore(updated);
+    } catch (err) {
+      console.error('Image upload error:', err);
+    } finally {
+      setUploadingCar(null);
+      setSavingImages(false);
+    }
   };
 
   const handleRemoveCarImage = async (carName: string) => {
@@ -782,7 +807,7 @@ const AdminPanel = () => {
               <h3 className="text-primary font-display font-bold text-lg mb-2 pb-3 border-b border-border flex items-center gap-2">
                 <Image className="w-5 h-5" /> Car Images
               </h3>
-              <p className="text-xs text-muted-foreground mb-5">Add image URLs for each vehicle. Images appear in car selection and booking view.</p>
+              <p className="text-xs text-muted-foreground mb-5">Upload photos from your phone or PC. Tap the <span className="text-primary font-semibold">image icon</span> next to any car to select a photo. Works on mobile camera too.</p>
 
               <div className="flex flex-col gap-3">
                 {CARS_LIST.map(car => (
@@ -807,13 +832,28 @@ const AdminPanel = () => {
                         </p>
                       </div>
                       <div className="flex gap-1.5 flex-shrink-0">
-                        <button
-                          onClick={() => { setEditingImageCar(car); setImageUrlInput(carImages[car] || ''); }}
-                          className="bg-primary/20 hover:bg-primary/30 p-1.5 rounded-lg transition-all hover:scale-110 text-xs"
-                          title="Set image URL"
+                        {/* Hidden file input */}
+                        <label
+                          htmlFor={`car-img-${car.replace(/\s/g, '-')}`}
+                          className="cursor-pointer bg-primary/20 hover:bg-primary/30 p-1.5 rounded-lg transition-all hover:scale-110 flex items-center"
+                          title="Upload photo from device"
                         >
-                          <Image className="w-3.5 h-3.5 text-primary" />
-                        </button>
+                          {uploadingCar === car
+                            ? <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                            : <Image className="w-3.5 h-3.5 text-primary" />}
+                        </label>
+                        <input
+                          id={`car-img-${car.replace(/\s/g, '-')}`}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) compressAndSave(car, file);
+                            e.target.value = '';
+                          }}
+                        />
                         {carImages[car] && (
                           <button
                             onClick={() => handleRemoveCarImage(car)}
@@ -825,31 +865,6 @@ const AdminPanel = () => {
                         )}
                       </div>
                     </div>
-
-                    {/* Inline URL editor */}
-                    {editingImageCar === car && (
-                      <div className="mt-2 flex gap-2 animate-fade-in-up">
-                        <input
-                          value={imageUrlInput}
-                          onChange={e => setImageUrlInput(e.target.value)}
-                          placeholder="Paste image URL here..."
-                          className="flex-1 px-3 py-2 bg-input border border-primary/50 rounded-lg text-sm text-foreground focus:border-primary focus:outline-none"
-                        />
-                        <button
-                          onClick={() => handleSaveCarImage(car, imageUrlInput)}
-                          disabled={savingImages || !imageUrlInput.trim()}
-                          className="bg-primary text-primary-foreground px-3 py-2 rounded-lg text-sm font-bold hover:bg-primary/80 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                        >
-                          {savingImages ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                        </button>
-                        <button
-                          onClick={() => { setEditingImageCar(null); setImageUrlInput(''); }}
-                          className="bg-muted hover:bg-muted/80 p-2 rounded-lg transition-all"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>

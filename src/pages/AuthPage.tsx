@@ -8,7 +8,8 @@ import {
 import { auth } from "@/lib/firebase";
 import { saveUserToFirestore, getUserRoleFromFirestore } from "@/lib/firestoreStore";
 import { setCurrentUser, getUsers, saveUsers } from "@/lib/store";
-import { Eye, EyeOff, Car, User, Mail, Phone, Lock, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, User, Mail, Phone, Lock, Loader2, AlertCircle } from "lucide-react";
+import carLiftLogo from "@/assets/carlift-logo-new.png";
 
 const InputField = ({
   type, placeholder, value, onChange, icon, rightEl, disabled
@@ -80,7 +81,6 @@ const AuthPage = () => {
       else navigate('/');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code || '';
-      // Fallback to localStorage if Firestore/Firebase fails
       try {
         const users = getUsers();
         const localUser = users.find(u => u.email === loginEmail && u.password === loginPass);
@@ -110,11 +110,9 @@ const AuthPage = () => {
       await saveUserToFirestore(cred.user.uid, {
         name: signupName, email: signupEmail, phone: signupPhone, role: 'user',
       });
-      // Also save to localStorage as fallback
       const users = getUsers();
       users.push({ name: signupName, email: signupEmail, phone: signupPhone, password: signupPass, role: 'user' });
       saveUsers(users);
-
       setCurrentUser({ name: signupName, email: signupEmail, phone: signupPhone, password: '', role: 'user' });
       navigate('/');
     } catch (err: unknown) {
@@ -146,17 +144,13 @@ const AuthPage = () => {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent rounded-full" />
 
           {/* Logo */}
-          <div className="flex flex-col items-center gap-3 mb-8">
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/30 rounded-full blur-xl" />
-              <div className="relative bg-primary/20 border-2 border-primary/50 rounded-2xl p-3.5">
-                <Car className="w-8 h-8 text-primary" />
-              </div>
-            </div>
-            <div className="text-center">
-              <h1 className="font-display text-2xl font-black gradient-text tracking-wide">CAR LIFT</h1>
-              <p className="text-muted-foreground text-xs mt-0.5 uppercase tracking-widest">Premium Monthly Service</p>
-            </div>
+          <div className="flex flex-col items-center gap-2 mb-8">
+            <img
+              src={carLiftLogo}
+              alt="Car Lift"
+              className="h-20 w-auto object-contain drop-shadow-[0_0_20px_hsla(0,70%,45%,0.5)]"
+            />
+            <p className="text-muted-foreground text-xs uppercase tracking-widest">Premium Monthly Service</p>
           </div>
 
           {/* Tabs */}
@@ -263,7 +257,6 @@ const AuthPage = () => {
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent rounded-full" />
         </div>
 
-        {/* Tagline below card */}
         <p className="text-center text-xs text-muted-foreground/50 mt-5 uppercase tracking-widest">
           Secure · Reliable · Premium
         </p>
