@@ -1,8 +1,8 @@
 {
-  "name": "Car Lift – Premium Monthly Rides",
-  "short_name": "Car Lift",
-  "description": "Book premium monthly car lift rides easily",
-  "start_url": "/",
+  "name": "Car Lift Admin Panel",
+  "short_name": "CL Admin",
+  "description": "Car Lift Admin – Manage bookings, routes & notifications",
+  "start_url": "/carlift-admin",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#cc0000",
@@ -14,5 +14,5 @@
       "type": "image/x-icon"
     }
   ],
-  "categories": ["travel", "transportation"]
+  "categories": ["productivity", "business"]
 }

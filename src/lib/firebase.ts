@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, browserSessionPersistence, setPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getMessaging, isSupported } from 'firebase/messaging';
 
@@ -16,6 +16,9 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Auto-logout when browser/tab is closed (session-based persistence)
+setPersistence(auth, browserSessionPersistence).catch(() => {});
 
 export const VAPID_KEY = "BAi3na1R6tu9F9fjGoSkJk9AULnNkMcKVF7Ylyx9SNQWTdTLm-_vhigavt-ffARw0l_0sCMeaU0lG4DfJcT5HI4";
 

@@ -8,13 +8,14 @@ import {
 import { jsPDF } from "jspdf";
 import {
   getBookings, saveBookings, getPickupLocations, getDropoffMapping,
-  savePickupLocations, saveDropoffMapping, CARS_LIST, type Booking,
+  savePickupLocations, saveDropoffMapping, CARS_LIST, ROUTES_DATA, type Booking, type RouteData, type PaymentInfo,
   getNotifications, markNotificationRead, markAllNotificationsRead, getDaysUntilDeadline,
   getCarImages, saveCarImages, parseFareAmount
 } from "@/lib/store";
 import {
   subscribeToBookings, updateBookingInFirestore, deleteBookingFromFirestore,
-  saveAdminFCMToken, getCarImagesFromFirestore, saveCarImagesToFirestore
+  saveAdminFCMToken, getCarImagesFromFirestore, saveCarImagesToFirestore,
+  saveRoutesToFirestore, subscribeToRoutes, savePaymentInfoToFirestore, subscribeToPaymentInfo
 } from "@/lib/firestoreStore";
 import { getMessagingInstance, VAPID_KEY } from "@/lib/firebase";
 import { getToken } from "firebase/messaging";
@@ -209,16 +210,42 @@ const AdminPanel = () => {
   const [uploadingCar, setUploadingCar] = useState<string | null>(null);
   const [savingImages, setSavingImages] = useState(false);
 
+  // Routes management state
+  const [routes, setRoutes] = useState<RouteData[]>(ROUTES_DATA);
+  const [newRouteTitle, setNewRouteTitle] = useState('');
+  const [newRouteTiming, setNewRouteTiming] = useState('');
+  const [editingRoute, setEditingRoute] = useState<RouteData | null>(null);
+  const [savingRoutes, setSavingRoutes] = useState(false);
+
+  // Payment info state
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
+    easypaisa: { accName: '', accNumber: '' },
+    jazzcash: { accName: '', accNumber: '' },
+    bankTransfer: { accName: '', accNumber: '' },
+  });
+  const [savingPayment, setSavingPayment] = useState(false);
+
   // FCM status
   const [fcmStatus, setFcmStatus] = useState<'idle' | 'granted' | 'denied'>('idle');
 
-  // Register PWA manifest for admin
+  // Switch to admin PWA manifest
   useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = '/manifest.json';
-    document.head.appendChild(link);
-    return () => { try { document.head.removeChild(link); } catch {} };
+    const existing = document.getElementById('pwa-manifest') as HTMLLinkElement | null;
+    const prev = existing?.href || '';
+    if (existing) existing.href = '/manifest-admin.json';
+    return () => { if (existing) existing.href = prev; };
+  }, []);
+
+  // Subscribe to routes from Firestore
+  useEffect(() => {
+    const unsub = subscribeToRoutes(r => { if (r.length) setRoutes(r); });
+    return () => unsub();
+  }, []);
+
+  // Subscribe to payment info from Firestore
+  useEffect(() => {
+    const unsub = subscribeToPaymentInfo(info => setPaymentInfo(info));
+    return () => unsub();
   }, []);
 
   // Firestore real-time subscription
@@ -437,6 +464,46 @@ const AdminPanel = () => {
     setCarImages(updated);
     saveCarImages(updated);
     await saveCarImagesToFirestore(updated);
+  };
+
+  // Routes management handlers
+  const handleAddRoute = async () => {
+    if (!newRouteTitle.trim() || !newRouteTiming.trim()) return;
+    setSavingRoutes(true);
+    const newRoute: RouteData = {
+      id: `r${Date.now()}`,
+      title: newRouteTitle.trim(),
+      timings: newRouteTiming.split(',').map(t => t.trim()).filter(Boolean),
+    };
+    const updated = [...routes, newRoute];
+    setRoutes(updated);
+    await saveRoutesToFirestore(updated);
+    setNewRouteTitle('');
+    setNewRouteTiming('');
+    setSavingRoutes(false);
+  };
+
+  const handleSaveEditRoute = async () => {
+    if (!editingRoute) return;
+    setSavingRoutes(true);
+    const updated = routes.map(r => r.id === editingRoute.id ? editingRoute : r);
+    setRoutes(updated);
+    await saveRoutesToFirestore(updated);
+    setEditingRoute(null);
+    setSavingRoutes(false);
+  };
+
+  const handleDeleteRoute = async (id: string) => {
+    const updated = routes.filter(r => r.id !== id);
+    setRoutes(updated);
+    await saveRoutesToFirestore(updated);
+  };
+
+  // Payment info handler
+  const handleSavePayment = async () => {
+    setSavingPayment(true);
+    await savePaymentInfoToFirestore(paymentInfo);
+    setSavingPayment(false);
   };
 
   const activeBookingForCar = bookings.find(b => b.id === carPopup);
@@ -801,6 +868,141 @@ const AdminPanel = () => {
 
         {/* ── SETTINGS TAB ── */}
         {activeTab === 'settings' && (
+          <div className="flex flex-col gap-6">
+
+            {/* ── Routes Management ── */}
+            <div className="bg-card border border-border rounded-2xl p-5">
+              <h3 className="text-primary font-display font-bold text-lg mb-2 pb-3 border-b border-border flex items-center gap-2">
+                <MapPin className="w-5 h-5" /> Routes Management
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">Add, edit or delete routes. Changes reflect instantly in the user panel.</p>
+
+              {/* Existing routes list */}
+              <div className="flex flex-col gap-2 mb-5">
+                {routes.map(route => (
+                  <div key={route.id} className="bg-primary/5 border border-border rounded-xl p-3 hover:border-primary/40 transition-all">
+                    {editingRoute?.id === route.id ? (
+                      <div className="flex flex-col gap-2">
+                        <input
+                          value={editingRoute.title}
+                          onChange={e => setEditingRoute({ ...editingRoute, title: e.target.value })}
+                          placeholder="Route title (From → To)"
+                          className="px-3 py-2 bg-input border border-primary/50 rounded-lg text-sm text-foreground focus:border-primary focus:outline-none w-full"
+                        />
+                        <input
+                          value={editingRoute.timings.join(', ')}
+                          onChange={e => setEditingRoute({ ...editingRoute, timings: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
+                          placeholder="Timings (comma-separated)"
+                          className="px-3 py-2 bg-input border border-primary/50 rounded-lg text-sm text-foreground focus:border-primary focus:outline-none w-full"
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={handleSaveEditRoute} disabled={savingRoutes} className="bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/85 transition-all flex items-center gap-1.5 disabled:opacity-50">
+                            {savingRoutes ? <Loader2 className="w-3 h-3 animate-spin" /> : null} Save
+                          </button>
+                          <button onClick={() => setEditingRoute(null)} className="bg-muted px-4 py-1.5 rounded-lg text-xs font-medium hover:bg-muted/80 transition-all">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-foreground truncate">{route.title}</p>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {route.timings.map((t, i) => (
+                              <span key={i} className="inline-flex items-center gap-1 text-xs bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5 text-muted-foreground">
+                                <Clock className="w-2.5 h-2.5 text-primary" />{t}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex gap-1.5 flex-shrink-0">
+                          <button onClick={() => setEditingRoute(route)} className="bg-primary/20 hover:bg-primary/30 p-1.5 rounded-lg transition-all" title="Edit">
+                            <Settings className="w-3.5 h-3.5 text-primary" />
+                          </button>
+                          <button onClick={() => handleDeleteRoute(route.id)} className="bg-destructive/20 hover:bg-destructive/30 p-1.5 rounded-lg transition-all" title="Delete">
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Add new route */}
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">Add New Route</p>
+                <div className="flex flex-col gap-2">
+                  <input
+                    value={newRouteTitle}
+                    onChange={e => setNewRouteTitle(e.target.value)}
+                    placeholder="Route title, e.g. Gulistan-e-Johar → PECHS"
+                    className="px-3 py-2.5 bg-input border border-primary/50 rounded-lg text-sm text-foreground focus:border-primary focus:outline-none"
+                  />
+                  <input
+                    value={newRouteTiming}
+                    onChange={e => setNewRouteTiming(e.target.value)}
+                    placeholder="Timing(s), e.g. 7:30 AM – 1:45 PM, 10:00 AM – 6:00 PM"
+                    className="px-3 py-2.5 bg-input border border-primary/50 rounded-lg text-sm text-foreground focus:border-primary focus:outline-none"
+                  />
+                  <button
+                    onClick={handleAddRoute}
+                    disabled={savingRoutes || !newRouteTitle.trim() || !newRouteTiming.trim()}
+                    className="bg-primary text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-primary/85 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {savingRoutes ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Add Route
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Payment Info Management ── */}
+            <div className="bg-card border border-border rounded-2xl p-5">
+              <h3 className="text-primary font-display font-bold text-lg mb-2 pb-3 border-b border-border flex items-center gap-2">
+                <DollarSign className="w-5 h-5" /> Payment Account Details
+              </h3>
+              <p className="text-xs text-muted-foreground mb-5">Set your account details. When a user taps a payment method, a popup shows these details with a copy button.</p>
+
+              <div className="flex flex-col gap-4">
+                {([
+                  { key: 'easypaisa', label: 'Easypaisa', color: 'text-green-400 border-green-500/30 bg-green-500/5' },
+                  { key: 'jazzcash', label: 'JazzCash', color: 'text-red-400 border-red-500/30 bg-red-500/5' },
+                  { key: 'bankTransfer', label: 'Bank Transfer', color: 'text-blue-400 border-blue-500/30 bg-blue-500/5' },
+                ] as const).map(({ key, label, color }) => (
+                  <div key={key} className={`border rounded-xl p-4 ${color}`}>
+                    <p className="font-bold text-sm mb-3">{label}</p>
+                    <div className="flex flex-col gap-2">
+                      <div>
+                        <label className="text-xs uppercase tracking-wider opacity-70 mb-1 block">Account Name</label>
+                        <input
+                          value={paymentInfo[key].accName}
+                          onChange={e => setPaymentInfo(prev => ({ ...prev, [key]: { ...prev[key], accName: e.target.value } }))}
+                          placeholder={`${label} account name`}
+                          className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs uppercase tracking-wider opacity-70 mb-1 block">Account Number</label>
+                        <input
+                          value={paymentInfo[key].accNumber}
+                          onChange={e => setPaymentInfo(prev => ({ ...prev, [key]: { ...prev[key], accNumber: e.target.value } }))}
+                          placeholder={`${label} number`}
+                          className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  onClick={handleSavePayment}
+                  disabled={savingPayment}
+                  className="bg-primary text-primary-foreground py-3 rounded-xl font-bold text-sm hover:bg-primary/85 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {savingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  {savingPayment ? 'Saving...' : 'Save Payment Details'}
+                </button>
+              </div>
+            </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Car Image Management */}
             <div className="bg-card border border-border rounded-2xl p-5">
@@ -963,6 +1165,7 @@ const AdminPanel = () => {
                 </div>
               </div>
             </div>
+          </div>
           </div>
         )}
       </div>

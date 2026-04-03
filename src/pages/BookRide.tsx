@@ -1,67 +1,198 @@
-import { useState, useEffect } from "react";
-import { MapPin, Clock, Star, CalendarDays, CreditCard, User, Phone, ChevronLeft, ChevronRight, CheckCircle2, X, Navigation } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  getPickupLocations, getDropoffMapping, ROUTE_TIMINGS, ROUTES_DATA,
-  calculateFare, getBookings, saveBookings, addNotification, type Booking
+  MapPin, Clock, Star, CalendarDays, CreditCard, User, Phone,
+  ChevronLeft, ChevronRight, CheckCircle2, X, Navigation, Copy, Check, Car
+} from "lucide-react";
+import {
+  getPickupLocations, getDropoffMapping, ROUTE_TIMINGS,
+  ROUTES_DATA, calculateFare, getBookings, saveBookings,
+  addNotification, type Booking, type RouteData, type PaymentInfo
 } from "@/lib/store";
-import { saveBookingToFirestore, addNotificationToFirestore } from "@/lib/firestoreStore";
+import {
+  saveBookingToFirestore, addNotificationToFirestore,
+  subscribeToRoutes, subscribeToPaymentInfo, subscribeToUserBookings
+} from "@/lib/firestoreStore";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged, type User as FBUser } from "firebase/auth";
 
-// Route Carousel - Enhanced
-const RouteCarousel = () => {
+// ─── Attractive Route Carousel ───────────────────────────────────────────────
+
+const RouteCarousel = ({ routes }: { routes: RouteData[] }) => {
   const [current, setCurrent] = useState(0);
+  const list = routes.length ? routes : ROUTES_DATA;
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrent(c => (c + 1) % ROUTES_DATA.length), 5000);
+    const timer = setInterval(() => setCurrent(c => (c + 1) % list.length), 4500);
     return () => clearInterval(timer);
-  }, []);
+  }, [list.length]);
+
+  const [from, to] = list[current]?.title.split(' → ') ?? ['', ''];
 
   return (
     <div className="mb-10">
       <h2 className="font-display text-2xl md:text-3xl text-center mb-6 gradient-text font-bold">Our Routes</h2>
-      <div className="relative overflow-hidden rounded-2xl border-2 border-primary/60" style={{ background: 'linear-gradient(135deg, hsl(0 0% 5%), hsl(0 30% 8%))' }}>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,hsla(0,70%,45%,0.15),transparent_60%)]" />
-        <div className="flex transition-transform duration-700 ease-[cubic-bezier(0.25,0.8,0.25,1)]" style={{ transform: `translateX(-${current * 100}%)` }}>
-          {ROUTES_DATA.map((route, i) => (
-            <div key={i} className="min-w-full p-10 text-center relative">
-              <div className="absolute top-4 right-4 bg-primary/20 border border-primary/40 rounded-full px-3 py-1 text-xs text-primary font-semibold">
-                Route {i + 1}/{ROUTES_DATA.length}
-              </div>
-              <div className="inline-flex items-center gap-2 bg-primary/15 border border-primary/40 rounded-full px-4 py-1.5 mb-4">
-                <Navigation className="w-4 h-4 text-primary" />
-                <span className="text-xs text-primary font-semibold uppercase tracking-wider">Active Route</span>
-              </div>
-              <h3 className="font-display text-xl md:text-3xl text-foreground mb-5 font-bold">
-                <span className="text-primary">{route.title.split(' → ')[0]}</span>
-                <span className="text-muted-foreground mx-2">→</span>
-                <span className="text-primary">{route.title.split(' → ')[1]}</span>
-              </h3>
-              <div className="flex flex-wrap justify-center gap-3">
-                {route.timings.map((t, j) => (
-                  <span key={j} className="inline-flex items-center gap-2 bg-primary/20 border border-primary/50 px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary/30 transition-colors">
-                    <Clock className="w-4 h-4 text-primary" />{t}
-                  </span>
-                ))}
-              </div>
+
+      {/* Main card */}
+      <div className="relative overflow-hidden rounded-2xl border border-primary/40" style={{ background: 'linear-gradient(135deg, hsl(0 0% 4%), hsl(0 35% 9%))' }}>
+        {/* Decorative glows */}
+        <div className="absolute top-0 left-0 w-48 h-48 bg-primary/15 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none" />
+
+        <div className="relative px-14 py-10 text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 bg-primary/15 border border-primary/40 rounded-full px-4 py-1.5 mb-5">
+            <Navigation className="w-3.5 h-3.5 text-primary animate-pulse" />
+            <span className="text-xs text-primary font-bold uppercase tracking-widest">Active Route</span>
+            <span className="text-xs text-muted-foreground ml-1">{current + 1}/{list.length}</span>
+          </div>
+
+          {/* Route display */}
+          <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6 mb-6">
+            <div className="bg-primary/10 border border-primary/30 rounded-2xl px-6 py-3 min-w-[140px]">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">From</p>
+              <p className="font-display text-lg md:text-2xl text-primary font-bold">{from}</p>
             </div>
-          ))}
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-8 h-px bg-primary/60" />
+              <ChevronRight className="w-6 h-6 text-primary animate-pulse" />
+              <div className="w-8 h-px bg-primary/60" />
+            </div>
+            <div className="bg-primary/10 border border-primary/30 rounded-2xl px-6 py-3 min-w-[140px]">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">To</p>
+              <p className="font-display text-lg md:text-2xl text-primary font-bold">{to}</p>
+            </div>
+          </div>
+
+          {/* Timings */}
+          <div className="flex flex-wrap justify-center gap-2">
+            {list[current]?.timings.map((t, i) => (
+              <span key={i} className="inline-flex items-center gap-2 bg-primary/20 border border-primary/50 px-5 py-2 rounded-full text-sm font-semibold text-foreground">
+                <Clock className="w-4 h-4 text-primary" />{t}
+              </span>
+            ))}
+          </div>
         </div>
-        <button onClick={() => setCurrent(c => (c - 1 + ROUTES_DATA.length) % ROUTES_DATA.length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-primary/90 hover:bg-primary hover:scale-110 p-2.5 rounded-full transition-all shadow-lg">
+
+        {/* Nav arrows */}
+        <button
+          onClick={() => setCurrent(c => (c - 1 + list.length) % list.length)}
+          className="absolute left-3 top-1/2 -translate-y-1/2 bg-primary/90 hover:bg-primary hover:scale-110 p-2.5 rounded-full transition-all shadow-lg shadow-primary/30"
+        >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <button onClick={() => setCurrent(c => (c + 1) % ROUTES_DATA.length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary/90 hover:bg-primary hover:scale-110 p-2.5 rounded-full transition-all shadow-lg">
+        <button
+          onClick={() => setCurrent(c => (c + 1) % list.length)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary/90 hover:bg-primary hover:scale-110 p-2.5 rounded-full transition-all shadow-lg shadow-primary/30"
+        >
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
-      <div className="flex justify-center gap-2.5 mt-5">
-        {ROUTES_DATA.map((_, i) => (
-          <button key={i} onClick={() => setCurrent(i)} className={`h-2.5 rounded-full transition-all duration-300 ${i === current ? 'bg-primary w-8' : 'bg-primary/30 w-2.5 hover:bg-primary/50'}`} />
+
+      {/* Dots */}
+      <div className="flex justify-center gap-2 mt-4">
+        {list.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrent(i)}
+            className={`h-2 rounded-full transition-all duration-300 ${i === current ? 'bg-primary w-8 shadow-[0_0_6px_hsl(var(--primary)/0.8)]' : 'bg-primary/30 w-2.5 hover:bg-primary/60'}`}
+          />
         ))}
       </div>
     </div>
   );
 };
 
-// Selection Modal
+// ─── Active Package Banner ────────────────────────────────────────────────────
+
+const ActivePackageBanner = ({ booking }: { booking: Booking }) => {
+  const [from, to] = [booking.pickup, booking.dropoff];
+  return (
+    <div className="mb-8 relative overflow-hidden rounded-2xl border border-green-500/50 bg-green-500/5 p-5">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="flex items-start gap-4">
+        <div className="bg-green-500/20 p-3 rounded-xl flex-shrink-0">
+          <CheckCircle2 className="w-6 h-6 text-green-400" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-green-400 bg-green-500/20 border border-green-500/40 px-2 py-0.5 rounded-full">Active Package</span>
+            {booking.assignedCar && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Car className="w-3 h-3" />{booking.assignedCar.split(' ').slice(0, 3).join(' ')}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="font-display text-lg font-bold text-green-300">{from}</span>
+            <ChevronRight className="w-4 h-4 text-green-500" />
+            <span className="font-display text-lg font-bold text-green-300">{to}</span>
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-green-500" />{booking.timing}</span>
+            <span className="flex items-center gap-1"><Star className="w-3 h-3 text-green-500" />{booking.class}</span>
+            <span className="flex items-center gap-1"><CreditCard className="w-3 h-3 text-green-500" />{booking.fare}</span>
+            <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3 text-green-500" />Since {booking.startDate}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Payment Info Popup ──────────────────────────────────────────────────────
+
+const PaymentPopup = ({
+  method, info, onClose
+}: {
+  method: 'easypaisa' | 'jazzcash' | 'bankTransfer';
+  info: PaymentInfo;
+  onClose: () => void;
+}) => {
+  const [copied, setCopied] = useState(false);
+  const labels: Record<string, string> = { easypaisa: 'Easypaisa', jazzcash: 'JazzCash', bankTransfer: 'Bank Transfer' };
+  const colors: Record<string, string> = { easypaisa: 'text-green-400 border-green-500/50 bg-green-500/10', jazzcash: 'text-red-400 border-red-500/50 bg-red-500/10', bankTransfer: 'text-blue-400 border-blue-500/50 bg-blue-500/10' };
+  const data = info[method];
+
+  const copyNumber = () => {
+    navigator.clipboard.writeText(data.accNumber).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-background/90 z-[3000] flex justify-center items-center p-4" onClick={onClose}>
+      <div className="bg-card border-2 border-primary/50 rounded-2xl p-6 max-w-sm w-full animate-fade-in-up shadow-2xl shadow-primary/20" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-5">
+          <h3 className="font-display text-lg font-bold text-primary">{labels[method]} Payment</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className={`border rounded-2xl p-5 mb-4 ${colors[method]}`}>
+          <p className="text-xs uppercase tracking-widest opacity-70 mb-1">Account Name</p>
+          <p className="text-xl font-bold mb-4">{data.accName || '—'}</p>
+          <p className="text-xs uppercase tracking-widest opacity-70 mb-1">Account Number</p>
+          <div className="flex items-center gap-3">
+            <p className="text-2xl font-bold font-mono tracking-wider flex-1">{data.accNumber || '—'}</p>
+            <button
+              onClick={copyNumber}
+              className="bg-white/10 hover:bg-white/20 border border-white/20 p-2.5 rounded-xl transition-all hover:scale-110 flex-shrink-0"
+              title="Copy number"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+          {copied && <p className="text-xs mt-2 opacity-80">Copied to clipboard!</p>}
+        </div>
+
+        <p className="text-xs text-muted-foreground text-center">Send payment to this account and mention your booking ID.</p>
+      </div>
+    </div>
+  );
+};
+
+// ─── Selection Modal ─────────────────────────────────────────────────────────
+
 const SelectionModal = ({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) => {
   if (!open) return null;
   return (
@@ -83,24 +214,22 @@ const OptionButton = ({ label, onClick, icon }: { label: string; onClick: () => 
   </button>
 );
 
-// Calendar Modal
+// ─── Calendar Modal ──────────────────────────────────────────────────────────
+
 const CalendarModal = ({ open, onClose, onSelect }: { open: boolean; onClose: () => void; onSelect: (date: string) => void }) => {
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth());
   const [selected, setSelected] = useState('');
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
   const firstDay = new Date(year, month, 1).getDay();
   const lastDate = new Date(year, month + 1, 0).getDate();
 
   const changeMonth = (delta: number) => {
-    let m = month + delta;
-    let y = year;
+    let m = month + delta, y = year;
     if (m < 0) { m = 11; y--; }
     if (m > 11) { m = 0; y++; }
-    setMonth(m);
-    setYear(y);
+    setMonth(m); setYear(y);
   };
 
   const selectDate = (d: number) => {
@@ -111,7 +240,6 @@ const CalendarModal = ({ open, onClose, onSelect }: { open: boolean; onClose: ()
   };
 
   if (!open) return null;
-
   return (
     <SelectionModal open={open} onClose={onClose} title="Select Start Date">
       <div className="flex justify-between items-center mb-4">
@@ -135,8 +263,15 @@ const CalendarModal = ({ open, onClose, onSelect }: { open: boolean; onClose: ()
   );
 };
 
-// Main Booking Page
+// ─── Main BookRide Page ──────────────────────────────────────────────────────
+
 const BookRide = () => {
+  const [fbUser, setFbUser] = useState<FBUser | null>(null);
+  const [routes, setRoutes] = useState<RouteData[]>(ROUTES_DATA);
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
+  const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+  const [paymentPopup, setPaymentPopup] = useState<'easypaisa' | 'jazzcash' | 'bankTransfer' | null>(null);
+
   const [fullName, setFullName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [pickup, setPickup] = useState('');
@@ -156,10 +291,49 @@ const BookRide = () => {
     setDropMap(getDropoffMapping());
   }, [modal]);
 
+  // Subscribe to Firebase auth state
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, u => setFbUser(u));
+    return () => unsub();
+  }, []);
+
+  // Subscribe to routes from Firestore
+  useEffect(() => {
+    const unsub = subscribeToRoutes(r => { if (r.length) setRoutes(r); });
+    return () => unsub();
+  }, []);
+
+  // Subscribe to payment info
+  useEffect(() => {
+    const unsub = subscribeToPaymentInfo(info => setPaymentInfo(info));
+    return () => unsub();
+  }, []);
+
+  // Subscribe to user's active booking
+  useEffect(() => {
+    if (!fbUser) { setActiveBooking(null); return; }
+    const unsub = subscribeToUserBookings(fbUser.uid, (bookings) => {
+      const approved = bookings.find(b => b.status === 'approved');
+      setActiveBooking(approved || null);
+    });
+    return () => unsub();
+  }, [fbUser]);
+
   const fare = calculateFare(pickup, dropoff);
 
-  const togglePayment = (p: string) => {
-    setPayments(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+  const handlePaymentClick = (method: string) => {
+    const keyMap: Record<string, 'easypaisa' | 'jazzcash' | 'bankTransfer'> = {
+      'Easypaisa': 'easypaisa',
+      'JazzCash': 'jazzcash',
+      'Bank Transfer': 'bankTransfer',
+    };
+    const key = keyMap[method];
+    // Toggle selection
+    setPayments(prev => prev.includes(method) ? prev.filter(x => x !== method) : [...prev, method]);
+    // Show popup if admin has set payment info
+    if (paymentInfo && key && (paymentInfo[key]?.accNumber || paymentInfo[key]?.accName)) {
+      setPaymentPopup(key);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -171,21 +345,19 @@ const BookRide = () => {
     const bookingId = Date.now();
     const newBooking: Booking = {
       id: bookingId,
+      userId: fbUser?.uid || '',
       name: fullName, whatsapp, pickup, dropoff, timing,
       class: carClass, startDate, payment: payments.join(', '),
       fare: `Rs ${fare?.total}/month`, status: 'pending', assignedCar: '',
       createdAt: new Date().toISOString(),
     };
 
-    // Save to localStorage (primary fallback)
     const bookings = getBookings();
     bookings.unshift(newBooking);
     saveBookings(bookings);
 
-    // Save to Firestore (real-time + push notifications)
     await saveBookingToFirestore(newBooking);
 
-    // Add notification (localStorage + Firestore)
     const notifMsg = `New booking from ${fullName} (${pickup} → ${dropoff})`;
     addNotification(notifMsg, bookingId);
     await addNotificationToFirestore(notifMsg, bookingId);
@@ -197,7 +369,10 @@ const BookRide = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in-up">
-      <RouteCarousel />
+      <RouteCarousel routes={routes} />
+
+      {/* Active package banner */}
+      {activeBooking && <ActivePackageBanner booking={activeBooking} />}
 
       <div className="glass-card p-6 md:p-8">
         <h2 className="font-display text-xl md:text-2xl text-center mb-8 gradient-text font-bold">Monthly Plan Booking</h2>
@@ -256,10 +431,11 @@ const BookRide = () => {
 
           {/* Payment */}
           <div className="mt-6">
-            <label className="font-semibold text-primary text-xs uppercase tracking-wider mb-3 block">Payment Method</label>
+            <label className="font-semibold text-primary text-xs uppercase tracking-wider mb-1 block">Payment Method</label>
+            <p className="text-xs text-muted-foreground mb-3">Tap a method to see payment details</p>
             <div className="flex flex-wrap gap-3">
-              {['Easypaisa', 'JazzCash', 'Bank Transfer'].map(p => (
-                <button key={p} type="button" onClick={() => togglePayment(p)}
+              {(['Easypaisa', 'JazzCash', 'Bank Transfer'] as const).map(p => (
+                <button key={p} type="button" onClick={() => handlePaymentClick(p)}
                   className={`px-5 py-3 border rounded-lg font-medium text-sm transition-all hover:scale-105 ${payments.includes(p) ? 'bg-primary/30 border-primary shadow-[0_0_10px_hsla(0,70%,45%,0.4)]' : 'bg-input border-primary/50 hover:border-primary hover:bg-primary/10'}`}>
                   {p}
                 </button>
@@ -267,8 +443,8 @@ const BookRide = () => {
             </div>
           </div>
 
-          <button type="submit" className="w-full mt-8 py-4 bg-gradient-to-r from-primary to-destructive border-none rounded-xl font-display font-bold text-lg text-primary-foreground hover:opacity-90 hover:scale-[1.01] transition-all">
-            Confirm Monthly Booking
+          <button type="submit" className="w-full mt-8 py-4 bg-primary border-none rounded-xl font-display font-bold text-lg text-primary-foreground hover:bg-primary/85 hover:scale-[1.01] transition-all shadow-lg shadow-primary/30">
+            Confirm Booking
           </button>
         </form>
       </div>
@@ -277,20 +453,21 @@ const BookRide = () => {
       <SelectionModal open={modal === 'pickup'} onClose={() => setModal(null)} title="Select Pickup">
         {pickups.map(l => <OptionButton key={l} label={l} icon={<MapPin className="w-4 h-4 text-primary" />} onClick={() => { setPickup(l); setDropoff(''); setTiming(''); setModal(null); }} />)}
       </SelectionModal>
-
       <SelectionModal open={modal === 'dropoff'} onClose={() => setModal(null)} title="Select Drop-off">
         {(dropMap[pickup] || []).map(d => <OptionButton key={d} label={d} icon={<MapPin className="w-4 h-4 text-primary" />} onClick={() => { setDropoff(d); setModal(null); }} />)}
       </SelectionModal>
-
       <SelectionModal open={modal === 'timing'} onClose={() => setModal(null)} title="Select Timing">
         {(ROUTE_TIMINGS[`${pickup}→${dropoff}`] || []).map(t => <OptionButton key={t} label={t} icon={<Clock className="w-4 h-4 text-primary" />} onClick={() => { setTiming(t); setModal(null); }} />)}
       </SelectionModal>
-
       <SelectionModal open={modal === 'class'} onClose={() => setModal(null)} title="Vehicle Class">
         {['Executive', 'Pro Executive'].map(c => <OptionButton key={c} label={c} icon={<Star className="w-4 h-4 text-primary" />} onClick={() => { setCarClass(c); setModal(null); }} />)}
       </SelectionModal>
-
       <CalendarModal open={modal === 'calendar'} onClose={() => setModal(null)} onSelect={setStartDate} />
+
+      {/* Payment popup */}
+      {paymentPopup && paymentInfo && (
+        <PaymentPopup method={paymentPopup} info={paymentInfo} onClose={() => setPaymentPopup(null)} />
+      )}
 
       {/* Success Modal */}
       {showSuccess && (

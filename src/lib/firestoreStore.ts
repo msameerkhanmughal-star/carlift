@@ -4,7 +4,7 @@ import {
   serverTimestamp, getDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Booking, Notification } from './store';
+import type { Booking, Notification, RouteData, PaymentInfo } from './store';
 
 // ─── Bookings ───────────────────────────────────────────────────────────────
 
@@ -27,6 +27,21 @@ export function subscribeToBookings(callback: (bookings: Booking[]) => void): ()
     callback(bookings);
   }, (err) => {
     console.error('Firestore bookings subscription error:', err);
+  });
+  return unsub;
+}
+
+export function subscribeToUserBookings(userId: string, callback: (bookings: Booking[]) => void): () => void {
+  const q = query(
+    collection(db, 'bookings'),
+    where('userId', '==', userId),
+    orderBy('createdAt', 'desc')
+  );
+  const unsub = onSnapshot(q, (snap) => {
+    const bookings: Booking[] = snap.docs.map(d => ({ ...d.data() } as Booking));
+    callback(bookings);
+  }, (err) => {
+    console.error('Firestore user bookings error:', err);
   });
   return unsub;
 }
@@ -140,4 +155,43 @@ export async function getCarImagesFromFirestore(): Promise<Record<string, string
   } catch {
     return {};
   }
+}
+
+// ─── Routes ──────────────────────────────────────────────────────────────────
+
+export async function saveRoutesToFirestore(routes: RouteData[]): Promise<void> {
+  try {
+    await setDoc(doc(db, 'settings', 'routes'), { routes, updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.error('Firestore save routes error:', err);
+  }
+}
+
+export function subscribeToRoutes(callback: (routes: RouteData[]) => void): () => void {
+  const unsub = onSnapshot(doc(db, 'settings', 'routes'), (snap) => {
+    if (snap.exists()) callback(snap.data().routes || []);
+    else callback([]);
+  }, (err) => {
+    console.error('Firestore routes subscription error:', err);
+  });
+  return unsub;
+}
+
+// ─── Payment Info ─────────────────────────────────────────────────────────────
+
+export async function savePaymentInfoToFirestore(info: PaymentInfo): Promise<void> {
+  try {
+    await setDoc(doc(db, 'settings', 'paymentInfo'), { ...info, updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.error('Firestore save payment info error:', err);
+  }
+}
+
+export function subscribeToPaymentInfo(callback: (info: PaymentInfo) => void): () => void {
+  const unsub = onSnapshot(doc(db, 'settings', 'paymentInfo'), (snap) => {
+    if (snap.exists()) callback(snap.data() as PaymentInfo);
+  }, (err) => {
+    console.error('Firestore payment info subscription error:', err);
+  });
+  return unsub;
 }

@@ -38,6 +38,23 @@ export interface CarImage {
   imageUrl: string;
 }
 
+export interface RouteData {
+  id: string;
+  title: string;
+  timings: string[];
+}
+
+export interface PaymentMethodInfo {
+  accName: string;
+  accNumber: string;
+}
+
+export interface PaymentInfo {
+  easypaisa: PaymentMethodInfo;
+  jazzcash: PaymentMethodInfo;
+  bankTransfer: PaymentMethodInfo;
+}
+
 export const CARS_LIST = [
   "Suzuki Alto 2019 Silver BSB 179",
   "Suzuki Alto 2020 White BVG 830",
@@ -77,13 +94,13 @@ export const DISTANCE_DB: Record<string, number> = {
   "Gulshan-e-Iqbal-DHA / Clifton": 15.6,
 };
 
-export const ROUTES_DATA = [
-  { title: "Gulistan-e-Johar → PECHS", timings: ["7:30 AM – 1:45 PM"] },
-  { title: "PECHS → DHA / Clifton", timings: ["7:30 AM – 1:45 PM"] },
-  { title: "DHA / Clifton → PECHS", timings: ["7:30 AM – 1:45 PM"] },
-  { title: "Gulshan-e-Iqbal → PECHS", timings: ["7:30 AM – 1:45 PM"] },
-  { title: "Gulshan-e-Iqbal → I.I. Chundrigar", timings: ["10:00 AM – 6:00 PM"] },
-  { title: "Gulshan-e-Iqbal → DHA / Clifton", timings: ["8:30 AM – 4:30 PM"] },
+export const ROUTES_DATA: RouteData[] = [
+  { id: "r1", title: "Gulistan-e-Johar → PECHS", timings: ["7:30 AM – 1:45 PM"] },
+  { id: "r2", title: "PECHS → DHA / Clifton", timings: ["7:30 AM – 1:45 PM"] },
+  { id: "r3", title: "DHA / Clifton → PECHS", timings: ["7:30 AM – 1:45 PM"] },
+  { id: "r4", title: "Gulshan-e-Iqbal → PECHS", timings: ["7:30 AM – 1:45 PM"] },
+  { id: "r5", title: "Gulshan-e-Iqbal → I.I. Chundrigar", timings: ["10:00 AM – 6:00 PM"] },
+  { id: "r6", title: "Gulshan-e-Iqbal → DHA / Clifton", timings: ["8:30 AM – 4:30 PM"] },
 ];
 
 const FARE_PER_KM = 59;
