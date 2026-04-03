@@ -42,6 +42,8 @@ export interface RouteData {
   id: string;
   title: string;
   timings: string[];
+  morningSlots?: string[];
+  eveningSlots?: string[];
 }
 
 export interface PaymentMethodInfo {
@@ -95,12 +97,89 @@ export const DISTANCE_DB: Record<string, number> = {
 };
 
 export const ROUTES_DATA: RouteData[] = [
-  { id: "r1", title: "Gulistan-e-Johar → PECHS", timings: ["7:30 AM – 1:45 PM"] },
-  { id: "r2", title: "PECHS → DHA / Clifton", timings: ["7:30 AM – 1:45 PM"] },
-  { id: "r3", title: "DHA / Clifton → PECHS", timings: ["7:30 AM – 1:45 PM"] },
-  { id: "r4", title: "Gulshan-e-Iqbal → PECHS", timings: ["7:30 AM – 1:45 PM"] },
-  { id: "r5", title: "Gulshan-e-Iqbal → I.I. Chundrigar", timings: ["10:00 AM – 6:00 PM"] },
-  { id: "r6", title: "Gulshan-e-Iqbal → DHA / Clifton", timings: ["8:30 AM – 4:30 PM"] },
+  {
+    id: "r1", title: "Gulistan-e-Johar → PECHS",
+    timings: ["7:30 AM – 1:45 PM"],
+    morningSlots: ["07:30 AM"], eveningSlots: ["01:45 PM"],
+  },
+  {
+    id: "r2", title: "PECHS → DHA / Clifton",
+    timings: ["7:30 AM – 1:45 PM"],
+    morningSlots: ["07:30 AM"], eveningSlots: ["01:45 PM"],
+  },
+  {
+    id: "r3", title: "DHA / Clifton → PECHS",
+    timings: ["7:30 AM – 1:45 PM"],
+    morningSlots: ["07:30 AM"], eveningSlots: ["01:45 PM"],
+  },
+  {
+    id: "r4", title: "Gulshan-e-Iqbal → PECHS",
+    timings: ["7:30 AM – 1:45 PM"],
+    morningSlots: ["07:30 AM"], eveningSlots: ["01:45 PM"],
+  },
+  {
+    id: "r5", title: "Gulshan-e-Iqbal → I.I. Chundrigar",
+    timings: ["10:00 AM – 6:00 PM", "11:00 AM – 7:00 PM", "12:00 PM – 8:00 PM"],
+    morningSlots: ["10:00 AM", "11:00 AM", "12:00 PM"], eveningSlots: ["06:00 PM", "07:00 PM", "08:00 PM"],
+  },
+  {
+    id: "r6", title: "DHA / Clifton → PECHS",
+    timings: ["10:00 AM – 6:00 PM", "11:00 AM – 7:00 PM", "12:00 PM – 8:00 PM"],
+    morningSlots: ["10:00 AM", "11:00 AM", "12:00 PM"], eveningSlots: ["06:00 PM", "07:00 PM", "08:00 PM"],
+  },
+  {
+    id: "r7", title: "DHA / Clifton → I.I. Chundrigar",
+    timings: ["10:00 AM – 6:00 PM", "11:00 AM – 7:00 PM", "12:00 PM – 8:00 PM"],
+    morningSlots: ["10:00 AM", "11:00 AM", "12:00 PM"], eveningSlots: ["06:00 PM", "07:00 PM", "08:00 PM"],
+  },
+  {
+    id: "r8", title: "Gulshan-e-Iqbal → DHA / Clifton",
+    timings: ["8:30 AM – 4:30 PM", "10:00 AM – 6:00 PM", "11:00 AM – 7:00 PM", "12:00 PM – 8:00 PM"],
+    morningSlots: ["08:30 AM", "10:00 AM", "11:00 AM", "12:00 PM"],
+    eveningSlots: ["04:30 PM", "06:00 PM", "07:00 PM", "08:00 PM"],
+  },
+  {
+    id: "r9", title: "North Karachi → DHA / Clifton",
+    timings: ["8:00 AM – 4:00 PM", "9:00 AM – 5:00 PM", "10:00 AM – 6:00 PM", "11:00 AM – 7:00 PM"],
+    morningSlots: ["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM"],
+    eveningSlots: ["04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM"],
+  },
+  {
+    id: "r10", title: "DHA / Clifton → Shahr-e-Faisal",
+    timings: ["8:00 AM – 4:00 PM", "9:00 AM – 5:00 PM", "10:00 AM – 6:00 PM", "11:00 AM – 7:00 PM"],
+    morningSlots: ["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM"],
+    eveningSlots: ["04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM", "08:00 PM"],
+  },
+  {
+    id: "r11", title: "Nazimabad → DHA / Clifton",
+    timings: ["8:00 AM – 4:00 PM", "9:00 AM – 5:00 PM", "10:00 AM – 6:00 PM", "11:00 AM – 7:00 PM"],
+    morningSlots: ["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM"],
+    eveningSlots: ["04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM", "08:00 PM"],
+  },
+  {
+    id: "r12", title: "North Nazimabad → DHA / Clifton",
+    timings: ["8:00 AM – 4:00 PM", "9:00 AM – 5:00 PM", "10:00 AM – 6:00 PM", "11:00 AM – 7:00 PM"],
+    morningSlots: ["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM"],
+    eveningSlots: ["05:00 PM", "06:00 PM", "07:00 PM", "08:00 PM"],
+  },
+  {
+    id: "r13", title: "NIPA → I.I. Chundrigar Road",
+    timings: ["9:00 AM – 6:00 PM", "10:00 AM – 7:00 PM", "11:00 AM – 7:00 PM"],
+    morningSlots: ["09:00 AM", "10:00 AM", "11:00 AM"],
+    eveningSlots: ["06:00 PM", "07:00 PM"],
+  },
+  {
+    id: "r14", title: "Saffora → DHA / Clifton",
+    timings: ["8:00 AM – 4:00 PM", "9:00 AM – 5:00 PM", "10:00 AM – 6:00 PM", "11:00 AM – 7:00 PM"],
+    morningSlots: ["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM"],
+    eveningSlots: ["04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM"],
+  },
+  {
+    id: "r15", title: "Scheme 33 → DHA / Clifton",
+    timings: ["8:00 AM – 4:00 PM", "9:00 AM – 5:00 PM", "10:00 AM – 6:00 PM", "11:00 AM – 7:00 PM"],
+    morningSlots: ["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM"],
+    eveningSlots: ["05:00 PM", "06:00 PM", "07:00 PM", "08:00 PM"],
+  },
 ];
 
 const FARE_PER_KM = 59;
